@@ -1,0 +1,87 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Migration {
+  id          String          @id @default(cuid())
+  sourceStore String
+  destStore   String
+  sourceToken String
+  destToken   String
+  status      MigrationStatus @default(PENDING)
+  config      Json
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  progress   MigrationProgress[]
+  logs       MigrationLog[]
+  idMappings IdMapping[]
+}
+
+model MigrationProgress {
+  id           String         @id @default(cuid())
+  migrationId  String
+  migration    Migration      @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+  resourceType String
+  status       ResourceStatus @default(PENDING)
+  total        Int            @default(0)
+  completed    Int            @default(0)
+  failed       Int            @default(0)
+  cursor       String?
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([migrationId, resourceType])
+}
+
+model MigrationLog {
+  id           String    @id @default(cuid())
+  migrationId  String
+  migration    Migration @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+  resourceType String
+  sourceId     String?
+  destId       String?
+  status       LogStatus
+  message      String?
+  createdAt    DateTime  @default(now())
+
+  @@index([migrationId, resourceType])
+}
+
+model IdMapping {
+  id           String    @id @default(cuid())
+  migrationId  String
+  migration    Migration @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+  resourceType String
+  sourceId     String
+  destId       String
+
+  @@unique([migrationId, resourceType, sourceId])
+  @@index([migrationId, resourceType])
+}
+
+enum MigrationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum ResourceStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum LogStatus {
+  SUCCESS
+  ERROR
+  SKIPPED
+}
